@@ -133,7 +133,12 @@ using namespace NicheGraphics;
 #include "notification_method.inc"
 #include "tips_methods.inc"
 constexpr uint16_t BLACK = 1, WHITE = 0;
-struct { int getBatteryVoltageMv() { return 4200; } } testPower;
+struct {
+    int charge=85; bool present=true;
+    int getBatteryVoltageMv() { return 4200; }
+    int getBatteryChargePercent() { return charge; }
+    bool getHasBattery() { return present; }
+} testPower;
 auto *powerStatus = &testPower;
 struct { float channelUtilizationPercent() { return 100; } float utilizationTXPercent() { return 100; } } testAir;
 auto *airTime = &testAir;
@@ -251,6 +256,28 @@ int main(int argc, char **argv) {
         assert(reused.pixels==fresh.pixels);
     }
     std::cout<<"PASS: repeated lockscreen redraw clears previous digits and messages in both orientations.\n";
+
+    for (int rotation=0; rotation<2; ++rotation) {
+        const int w=rotation?128:296, h=rotation?296:128;
+        for (int charge : {0,1,50,99,100,101,255}) {
+            testPower.charge=charge;
+            InkHUD::LockScreenApplet lock(w,h); lock.setCrop(0,0,w,h); lock.onRender(true);
+            assert(lock.minX>=0 && lock.maxX<w && lock.minY>=0 && lock.maxY<h);
+            lock.save("tests/build/lock-battery-"+std::to_string(rotation)+"-"+std::to_string(charge)+".pgm");
+        }
+        InkHUD::LockScreenApplet reused(w,h),fresh(w,h);
+        reused.setCrop(0,0,w,h);fresh.setCrop(0,0,w,h);
+        testPower.charge=100;reused.onRender(true);
+        testPower.charge=0;reused.onRender(false);fresh.onRender(true);
+        assert(reused.pixels==fresh.pixels);
+        testPower.present=false;reused.onRender(false);
+        std::fill(fresh.pixels.begin(),fresh.pixels.end(),255);fresh.onRender(true);
+        assert(reused.pixels==fresh.pixels);
+        testPower.present=true;
+        auto *savedPower=powerStatus;powerStatus=nullptr;reused.onRender(false);powerStatus=savedPower;
+    }
+    testPower.charge=85;
+    std::cout<<"PASS: lockscreen battery 0..100%, invalid, absent, null status and 100% -> 0% redraw.\n";
     auto f=fonts[0];
     InkHUD::NotificationApplet notification;
     notification.setFont(f);

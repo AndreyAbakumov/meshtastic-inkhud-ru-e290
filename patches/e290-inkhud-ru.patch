@@ -16369,12 +16369,13 @@ index a90500b15..93513edf2 100644
      inkhud->persistence->settings.userTiles.maxCount = 2; // How many tiles can the display handle?
 diff --git a/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.cpp b/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.cpp
 new file mode 100644
-index 000000000..d2e6dd0ff
+index 000000000..db2323e57
 --- /dev/null
 +++ b/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.cpp
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,201 @@
 +#if defined(MESHTASTIC_INCLUDE_INKHUD) && defined(HELTEC_VISION_MASTER_E290)
 +#include "LockScreenApplet.h"
++#include "PowerStatus.h"
 +#include "RTC.h"
 +#include "graphics/niche/InkHUD/Applets/System/Notification/NotificationApplet.h"
 +#include "graphics/niche/InkHUD/InkHUD.h"
@@ -16509,6 +16510,17 @@ index 000000000..d2e6dd0ff
 +    fillRect(0, 0, width(), height(), WHITE);
 +    const int16_t split = width() * 0.42f;
 +    const int16_t footer = height() - fontSmall.lineHeight();
++    setFont(fontSmall);
++    const int charge = powerStatus ? powerStatus->getBatteryChargePercent() : -1;
++    const bool validCharge = powerStatus && powerStatus->getHasBattery() && charge >= 0 && charge <= 100;
++    const std::string batteryText = validCharge ? to_string(charge) + "%" : "--%";
++    const int16_t batteryLeft = (split - (17 + getTextWidth(batteryText))) / 2;
++    drawRect(batteryLeft, 4, 12, 9, BLACK);
++    fillRect(batteryLeft + 12, 6, 2, 5, BLACK);
++    if (validCharge)
++        fillRect(batteryLeft + 2, 6, (8 * charge) / 100, 5, BLACK);
++    printAt(batteryLeft + 17, 1, batteryText);
++
 +    drawLine(split, 0, split, footer - 2, BLACK);
 +    setFont(fontLarge);
 +    std::string clock = getTimeString();
