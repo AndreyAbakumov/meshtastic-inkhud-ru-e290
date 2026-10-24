@@ -1,0 +1,12 @@
+firmware/
+.venv/
+.platformio/
+tests/build/
+dist/
+backups/
+logs/
+__pycache__/
+.DS_Store
+*.pyc
+e290-config*.yaml
+e290-full-backup*.bin

@@ -1,0 +1,12 @@
+The FreeSans bitmap fonts in this project are the existing Meshtastic
+src/graphics/niche/Fonts/FreeSans{6,9,12}pt_Win1251.h assets, based on GNU FreeFont.
+GNU FreeFont is licensed under GPL version 3 or later, with a font embedding
+exception for documents. Official license and explanation:
+https://www.gnu.org/s/freefont/license.html
+https://www.gnu.org/software/freefont/FAQ.html
+
+This modification retains the upstream font style and glyph data and adds a
+mathematical minus in unused encoding slot 0x98. Its bitmap is the horizontal
+bar of the corresponding existing plus glyph. The modified font headers and
+firmware changes are supplied under GPL-3.0 with the source code.
+See Meshtastic-GPL-3.0.txt for the full GPL version 3 text.
