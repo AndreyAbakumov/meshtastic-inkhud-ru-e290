@@ -227,5 +227,9 @@
   "Unread: ": "Новые: ",
   "No unread messages": "Новых нет",
   "More: ": "Ещё: ",
-  "Hold to unlock": "Удержать: выход"
+  "Hold to unlock": "Удержать: выход",
+  "Mode: economy": "Режим: экономный",
+  "Mode: normal": "Режим: обычный",
+  "Clock 5 min / clean 30 min": "Часы 5 мин. / очистка 30 мин.",
+  "Clock 1 min / clean 10 min": "Часы 1 мин. / очистка 10 мин."
 }

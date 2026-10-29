@@ -37,9 +37,14 @@ public:
     struct Options { uint32_t version=1;uint8_t minutes=0; } options;
     UnreadInbox inbox;
     uint32_t lastInput=0,minute=UINT32_MAX;
+    uint32_t economy=0,lastFullRefresh=0,lastClockRefresh=0;
+    uint32_t scheduled=0;
+    bool economyMode() const { return economy!=0; }
+    void setEconomy(bool enabled);
+    int32_t nextDelay();
     unsigned requests=0;
     Drivers::EInk::UpdateTypes lastType=Drivers::EInk::UpdateTypes::FAST;
-    void setIntervalFromNow(uint32_t) {}
+    void setIntervalFromNow(uint32_t delay) { scheduled=delay; }
     void requestUpdate(Drivers::EInk::UpdateTypes type = Drivers::EInk::UpdateTypes::FAST) { ++requests;lastType=type; }
     static bool input(bool unlock=false);
     bool canOpen(); void open(); void setTimeout(uint8_t); void clearUnread();
@@ -70,7 +75,7 @@ int main() {
     menu.foreground=true;nowMs+=90000;lock.runOnce();assert(!lock.isForeground());
     menu.foreground=false;nowMs+=59999;lock.runOnce();assert(!lock.isForeground());++nowMs;lock.runOnce();assert(lock.isForeground());
     logo.foreground=true;logo.handleInput=true;assert(!LockScreenApplet::input(true));assert(lock.isForeground());logo.foreground=false;
-    unsigned requests=lock.requests;lock.runOnce();assert(lock.requests==requests);epoch+=60;lock.runOnce();assert(lock.requests==requests+1);assert(lock.lastType==Drivers::EInk::UpdateTypes::FULL);
+    unsigned requests=lock.requests;lock.runOnce();assert(lock.requests==requests);epoch+=60;lock.runOnce();assert(lock.requests==requests+1);assert(lock.lastType==Drivers::EInk::UpdateTypes::FAST);
     meshtastic_MeshPacket p;MessageStore::Message m;lock.receive(&p,m);assert(lock.inbox.entries.size()==1);
     lock.receive(&p,m);assert(lock.inbox.entries.size()==1);
     LockScreenApplet::markRead(m,false);assert(lock.inbox.entries.size()==1);
@@ -81,6 +86,32 @@ int main() {
     for(uint32_t id=3;id<=50;++id) { p.id=id;lock.receive(&p,m); }
     assert(lock.inbox.entries.size()==20&&lock.inbox.entries.front().id==50&&lock.inbox.entries.back().id==31);
     lock.clearUnread();lock.receive(&p,m);assert(lock.inbox.entries.empty());
+    lock.setTimeout(0);assert(lock.nextDelay()==INT32_MAX);
+    nowMs=1000;lock.setTimeout(5);assert(lock.scheduled==300000);
+    nowMs+=12345;assert(lock.nextDelay()==287655);
+    LockScreenApplet::input();assert(lock.scheduled==300000);
+    for(bool economy : {false,true}) {
+        nowMs=0;epoch=0;lock.setEconomy(economy);lock.open();
+        unsigned fast=0,full=0;
+        for(unsigned m=1;m<=60;++m) {
+            nowMs=m*60000;epoch=m*60;
+            auto before=lock.requests;lock.runOnce();
+            const bool due= !economy || m%5==0;
+            assert(lock.requests-before==unsigned(due));
+            if(due) {
+                if(lock.lastType==Drivers::EInk::UpdateTypes::FULL)++full;else ++fast;
+                assert((lock.lastType==Drivers::EInk::UpdateTypes::FULL)==(m%(economy?30:10)==0));
+            }
+        }
+        assert(full==(economy?2u:6u));assert(fast==(economy?10u:54u));
+        lock.onButtonLongPress();
+    }
+    lock.setEconomy(false);nowMs=UINT32_MAX-30000;epoch=0;lock.open();
+    nowMs=29999;lock.runOnce();assert(lock.lastType==Drivers::EInk::UpdateTypes::FAST);
+    epoch=1;assert(lock.nextDelay()==59000);
+    LockScreenApplet::input();assert(lock.scheduled==59000);
+    lock.onButtonLongPress();
+    std::cout<<"PASS: normal 1/10, economy 5/30, precise idle deadlines, disabled idle timer, scheduling and rollover.\n";
     LockScreenApplet fresh;assert(fresh.inbox.entries.empty());
     std::cout<<"PASS: default off, 1/5/15 min, activity, rollover, modal priority, unlock, minute refresh, DM privacy, dedup, read guards, 20-message cap.\n";
 }

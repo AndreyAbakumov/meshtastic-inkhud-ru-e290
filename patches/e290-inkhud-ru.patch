@@ -14807,10 +14807,10 @@ index 1f3109413..012393b3c 100644
  
      inkhud->forceUpdate(Drivers::EInk::FULL, true, false);
 diff --git a/src/graphics/niche/InkHUD/Applets/System/Menu/MenuAction.h b/src/graphics/niche/InkHUD/Applets/System/Menu/MenuAction.h
-index 7ec76292b..bbd260d57 100644
+index 7ec76292b..42f23ed9c 100644
 --- a/src/graphics/niche/InkHUD/Applets/System/Menu/MenuAction.h
 +++ b/src/graphics/niche/InkHUD/Applets/System/Menu/MenuAction.h
-@@ -115,6 +115,12 @@ enum MenuAction {
+@@ -115,6 +115,13 @@ enum MenuAction {
      // Administration
      RESET_NODEDB_ALL,
      RESET_NODEDB_KEEP_FAVORITES,
@@ -14820,11 +14820,12 @@ index 7ec76292b..bbd260d57 100644
 +    LOCK_5,
 +    LOCK_15,
 +    CLEAR_UNREAD,
++    LOCK_ECONOMY,
  };
  
  } // namespace NicheGraphics::InkHUD
 diff --git a/src/graphics/niche/InkHUD/Applets/System/Menu/MenuApplet.cpp b/src/graphics/niche/InkHUD/Applets/System/Menu/MenuApplet.cpp
-index b2ef1f714..f33e6dfc9 100644
+index b2ef1f714..cc1a12d78 100644
 --- a/src/graphics/niche/InkHUD/Applets/System/Menu/MenuApplet.cpp
 +++ b/src/graphics/niche/InkHUD/Applets/System/Menu/MenuApplet.cpp
 @@ -1,5 +1,7 @@
@@ -14915,7 +14916,7 @@ index b2ef1f714..f33e6dfc9 100644
  
      return tzdef; // fallback for unknown/custom values
  }
-@@ -319,8 +324,26 @@ void InkHUD::MenuApplet::execute(MenuItem item)
+@@ -319,8 +324,29 @@ void InkHUD::MenuApplet::execute(MenuItem item)
      // ------------------
      switch (item.action) {
  
@@ -14928,6 +14929,9 @@ index b2ef1f714..f33e6dfc9 100644
 +        showPage(MenuPage::EXIT);
 +        LockScreenApplet::instance->open();
 +        return;
++    case LOCK_ECONOMY:
++        LockScreenApplet::instance->setEconomy(!LockScreenApplet::instance->economyMode());
++        break;
 +    case LOCK_OFF:
 +    case LOCK_1:
 +    case LOCK_5:
@@ -14944,7 +14948,7 @@ index b2ef1f714..f33e6dfc9 100644
      case NO_ACTION:
          if (currentPage == MenuPage::NODE_CONFIG_CHANNELS && item.nextPage == MenuPage::NODE_CONFIG_CHANNEL_DETAIL) {
  
-@@ -885,14 +908,15 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -885,14 +911,15 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
          previousPage = MenuPage::EXIT;
          // Optional: next applet
          if (settings->optionalMenuItems.nextTile && settings->userTiles.count > 1)
@@ -14966,7 +14970,7 @@ index b2ef1f714..f33e6dfc9 100644
          break;
  
      case SEND:
-@@ -907,116 +931,140 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -907,116 +934,144 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
  
      case OPTIONS:
          previousPage = MenuPage::ROOT;
@@ -15050,6 +15054,10 @@ index b2ef1f714..f33e6dfc9 100644
 +        previousPage = MenuPage::OPTIONS;
 +        items.push_back(MenuItem(INKHUD_TEXT("Back"), previousPage));
 +        items.push_back(MenuItem(INKHUD_TEXT("Lock now"), MenuAction::OPEN_LOCKSCREEN));
++        items.push_back(MenuItem(INKHUD_TEXT(LockScreenApplet::instance->economyMode() ? "Mode: economy" : "Mode: normal"),
++                                 MenuAction::LOCK_ECONOMY, LOCKSCREEN));
++        items.push_back(MenuItem::Header(INKHUD_TEXT(LockScreenApplet::instance->economyMode() ? "Clock 5 min / clean 30 min"
++                                                                                               : "Clock 1 min / clean 10 min")));
 +        auto minutes = LockScreenApplet::instance->timeout();
 +        nodeConfigLabels.emplace_back(std::string(INKHUD_TEXT("Auto: ")) +
 +                                      (minutes ? to_string(minutes) + INKHUD_TEXT(" mins") : INKHUD_TEXT("Off")));
@@ -15151,7 +15159,7 @@ index b2ef1f714..f33e6dfc9 100644
  #endif
          // ADC Multiplier
          float effectiveMult = 0.0f;
-@@ -1035,36 +1083,36 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1035,36 +1090,36 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
          // Only show if we actually have a value
          if (effectiveMult > 0.0f) {
              char buf[32];
@@ -15196,7 +15204,7 @@ index b2ef1f714..f33e6dfc9 100644
  
          items.push_back(MenuItem(wifiLabel, MenuAction::TOGGLE_WIFI, MenuPage::EXIT));
  
-@@ -1073,9 +1121,9 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1073,9 +1128,9 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
  
              // Status
              if (WiFi.status() == WL_CONNECTED) {
@@ -15208,7 +15216,7 @@ index b2ef1f714..f33e6dfc9 100644
              }
              items.push_back(MenuItem(nodeConfigLabels.back().c_str(), MenuAction::NO_ACTION, MenuPage::NODE_CONFIG_NETWORK));
  
-@@ -1085,7 +1133,7 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1085,7 +1140,7 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
                  int quality = constrain(2 * (rssi + 100), 0, 100);
  
                  char sigBuf[32];
@@ -15217,7 +15225,7 @@ index b2ef1f714..f33e6dfc9 100644
                  nodeConfigLabels.emplace_back(sigBuf);
                  items.push_back(MenuItem(nodeConfigLabels.back().c_str(), MenuAction::NO_ACTION, MenuPage::NODE_CONFIG_NETWORK));
  
-@@ -1098,7 +1146,7 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1098,7 +1153,7 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
              // SSID
              if (config.network.wifi_ssid && strlen(config.network.wifi_ssid) > 0) {
                  std::string ssidLabel = "SSID: ";
@@ -15226,7 +15234,7 @@ index b2ef1f714..f33e6dfc9 100644
                  nodeConfigLabels.emplace_back(ssidLabel);
                  items.push_back(MenuItem(nodeConfigLabels.back().c_str(), MenuAction::NO_ACTION, MenuPage::NODE_CONFIG_NETWORK));
              }
-@@ -1106,74 +1154,75 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1106,74 +1161,75 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
              // Hostname
              const char *host = WiFi.getHostname();
              if (host && strlen(host) > 0) {
@@ -15321,7 +15329,7 @@ index b2ef1f714..f33e6dfc9 100644
  
          for (uint8_t i = 0; i < MAX_NUM_CHANNELS; i++) {
              const meshtastic_Channel &ch = channels.getByIndex(i);
-@@ -1187,11 +1236,11 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1187,11 +1243,11 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
              std::string label = "#";
  
              if (ch.role == meshtastic_Channel_Role_PRIMARY) {
@@ -15335,7 +15343,7 @@ index b2ef1f714..f33e6dfc9 100644
              }
  
              nodeConfigLabels.push_back(label);
-@@ -1199,38 +1248,38 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1199,38 +1255,38 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
                  MenuItem(nodeConfigLabels.back().c_str(), MenuAction::NO_ACTION, MenuPage::NODE_CONFIG_CHANNEL_DETAIL));
          }
  
@@ -15384,7 +15392,7 @@ index b2ef1f714..f33e6dfc9 100644
  
              for (const auto &opt : POSITION_PRECISION_OPTIONS) {
                  if (opt.value == ch.settings.module_settings.position_precision) {
-@@ -1240,21 +1289,21 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1240,21 +1296,21 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
                      break;
                  }
              }
@@ -15410,7 +15418,7 @@ index b2ef1f714..f33e6dfc9 100644
              break;
          }
          constexpr uint8_t optionCount = sizeof(POSITION_PRECISION_OPTIONS) / sizeof(POSITION_PRECISION_OPTIONS[0]);
-@@ -1267,47 +1316,47 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1267,47 +1323,47 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
              items.push_back(MenuItem(nodeConfigLabels.back().c_str(), MenuAction::SET_CHANNEL_PRECISION,
                                       MenuPage::NODE_CONFIG_CHANNEL_DETAIL));
          }
@@ -15484,7 +15492,7 @@ index b2ef1f714..f33e6dfc9 100644
          items.push_back(MenuItem("US", MenuAction::SET_REGION_US, MenuPage::EXIT));
          items.push_back(MenuItem("EU 868", MenuAction::SET_REGION_EU_868, MenuPage::EXIT));
          items.push_back(MenuItem("EU 433", MenuAction::SET_REGION_EU_433, MenuPage::EXIT));
-@@ -1334,29 +1383,29 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
+@@ -1334,29 +1390,29 @@ void InkHUD::MenuApplet::showPage(MenuPage page)
          items.push_back(MenuItem("KZ 863", MenuAction::SET_REGION_KZ_863, MenuPage::EXIT));
          items.push_back(MenuItem("NP 865", MenuAction::SET_REGION_NP_865, MenuPage::EXIT));
          items.push_back(MenuItem("BR 902", MenuAction::SET_REGION_BR_902, MenuPage::EXIT));
@@ -15528,7 +15536,7 @@ index b2ef1f714..f33e6dfc9 100644
          break;
  
      // Exit
-@@ -1468,7 +1517,7 @@ void InkHUD::MenuApplet::onRender(bool full)
+@@ -1468,7 +1524,7 @@ void InkHUD::MenuApplet::onRender(bool full)
              setFont(fontSmall);
  
              // Header text (flush left)
@@ -15537,7 +15545,7 @@ index b2ef1f714..f33e6dfc9 100644
  
              // Subtle underline
              int16_t underlineY = itemT + itemH - 2;
-@@ -1479,7 +1528,8 @@ void InkHUD::MenuApplet::onRender(bool full)
+@@ -1479,7 +1535,8 @@ void InkHUD::MenuApplet::onRender(bool full)
                  drawRect(itemL, itemT + selectInsetY, itemW, itemH - (selectInsetY * 2), BLACK);
  
              // Indented normal item text
@@ -15547,7 +15555,7 @@ index b2ef1f714..f33e6dfc9 100644
          }
  
          // Checkbox, if relevant
-@@ -1704,7 +1754,7 @@ void InkHUD::MenuApplet::populateAppletPage()
+@@ -1704,7 +1761,7 @@ void InkHUD::MenuApplet::populateAppletPage()
      assert(items.size() == 0);
  
      for (uint8_t i = 0; i < inkhud->userApplets.size(); i++) {
@@ -15556,7 +15564,7 @@ index b2ef1f714..f33e6dfc9 100644
          bool *isActive = &(settings->userApplets.active[i]);
          items.push_back(MenuItem(name, MenuAction::TOGGLE_APPLET, MenuPage::APPLETS, isActive));
      }
-@@ -1720,7 +1770,7 @@ void InkHUD::MenuApplet::populateAutoshowPage()
+@@ -1720,7 +1777,7 @@ void InkHUD::MenuApplet::populateAutoshowPage()
      for (uint8_t i = 0; i < inkhud->userApplets.size(); i++) {
          // Only add a menu item if applet is active
          if (settings->userApplets.active[i]) {
@@ -15565,7 +15573,7 @@ index b2ef1f714..f33e6dfc9 100644
              bool *isActive = &(settings->userApplets.autoshow[i]);
              items.push_back(MenuItem(name, MenuAction::TOGGLE_AUTOSHOW_APPLET, MenuPage::AUTOSHOW, isActive));
          }
-@@ -1737,7 +1787,7 @@ void InkHUD::MenuApplet::populateRecentsPage()
+@@ -1737,7 +1794,7 @@ void InkHUD::MenuApplet::populateRecentsPage()
      // Create an entry for each item in RECENTS_OPTIONS_MINUTES array
      // (Defined at top of this file)
      for (uint8_t i = 0; i < optionCount; i++) {
@@ -15574,7 +15582,7 @@ index b2ef1f714..f33e6dfc9 100644
          recentsSelected[i] = (settings->recentlyActiveSeconds == RECENTS_OPTIONS_MINUTES[i] * 60);
          items.push_back(MenuItem(label.c_str(), MenuAction::SET_RECENTS, MenuPage::OPTIONS, &recentsSelected[i]));
      }
-@@ -1748,11 +1798,11 @@ void InkHUD::MenuApplet::populateRecentsPage()
+@@ -1748,11 +1805,11 @@ void InkHUD::MenuApplet::populateRecentsPage()
  void InkHUD::MenuApplet::populateSendPage()
  {
      // Position / NodeInfo packet
@@ -15588,7 +15596,7 @@ index b2ef1f714..f33e6dfc9 100644
  
      // One menu item for each canned message
      uint8_t count = cm.store->size();
-@@ -1770,7 +1820,7 @@ void InkHUD::MenuApplet::populateSendPage()
+@@ -1770,7 +1827,7 @@ void InkHUD::MenuApplet::populateSendPage()
          items.push_back(MenuItem(itemText, MenuAction::STORE_CANNEDMESSAGE_SELECTION, MenuPage::CANNEDMESSAGE_RECIPIENT));
      }
  
@@ -15597,7 +15605,7 @@ index b2ef1f714..f33e6dfc9 100644
  }
  
  // Dynamically create MenuItem entries for possible canned message destinations
-@@ -1793,9 +1843,9 @@ void InkHUD::MenuApplet::populateRecipientPage()
+@@ -1793,9 +1850,9 @@ void InkHUD::MenuApplet::populateRecipientPage()
          r.channelIndex = channel.index;
  
          // Set a label for the menu item
@@ -15609,7 +15617,7 @@ index b2ef1f714..f33e6dfc9 100644
          else
              r.label += parse(channel.settings.name);
  
-@@ -1835,7 +1885,7 @@ void InkHUD::MenuApplet::populateRecipientPage()
+@@ -1835,7 +1892,7 @@ void InkHUD::MenuApplet::populateRecipientPage()
              r.channelIndex = nodeDB->getMeshNodeChannel(node->num); // Channel index only relevant if encrypted DM not possible(?)
  
              // Set a label for the menu item
@@ -15618,7 +15626,7 @@ index b2ef1f714..f33e6dfc9 100644
              if (node->has_user)
                  r.label += parse(node->user.long_name);
              else
-@@ -1850,7 +1900,7 @@ void InkHUD::MenuApplet::populateRecipientPage()
+@@ -1850,7 +1907,7 @@ void InkHUD::MenuApplet::populateRecipientPage()
          }
      }
  
@@ -15627,7 +15635,7 @@ index b2ef1f714..f33e6dfc9 100644
  }
  
  void InkHUD::MenuApplet::drawInputField(uint16_t left, uint16_t top, uint16_t width, uint16_t height, const std::string &text)
-@@ -1949,9 +1999,9 @@ void InkHUD::MenuApplet::drawSystemInfoPanel(int16_t left, int16_t top, uint16_t
+@@ -1949,9 +2006,9 @@ void InkHUD::MenuApplet::drawSystemInfoPanel(int16_t left, int16_t top, uint16_t
  
      // Voltage
      float voltage = powerStatus->getBatteryVoltageMv() / 1000.0;
@@ -15640,7 +15648,7 @@ index b2ef1f714..f33e6dfc9 100644
      printAt(colC[0], valT, voltageStr, CENTER, TOP);
  
      // Divider
-@@ -1959,9 +2009,9 @@ void InkHUD::MenuApplet::drawSystemInfoPanel(int16_t left, int16_t top, uint16_t
+@@ -1959,9 +2016,9 @@ void InkHUD::MenuApplet::drawSystemInfoPanel(int16_t left, int16_t top, uint16_t
          drawPixel(colR[0], y, BLACK);
  
      // Channel Util
@@ -15653,7 +15661,7 @@ index b2ef1f714..f33e6dfc9 100644
      printAt(colC[1], valT, chUtilStr, CENTER, TOP);
  
      // Divider
-@@ -1969,9 +2019,9 @@ void InkHUD::MenuApplet::drawSystemInfoPanel(int16_t left, int16_t top, uint16_t
+@@ -1969,9 +2026,9 @@ void InkHUD::MenuApplet::drawSystemInfoPanel(int16_t left, int16_t top, uint16_t
          drawPixel(colR[1], y, BLACK);
  
      // Duty Cycle (AirTimeTx)
@@ -16369,10 +16377,10 @@ index a90500b15..93513edf2 100644
      inkhud->persistence->settings.userTiles.maxCount = 2; // How many tiles can the display handle?
 diff --git a/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.cpp b/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.cpp
 new file mode 100644
-index 000000000..db2323e57
+index 000000000..fa79f166b
 --- /dev/null
 +++ b/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.cpp
-@@ -0,0 +1,201 @@
+@@ -0,0 +1,234 @@
 +#if defined(MESHTASTIC_INCLUDE_INKHUD) && defined(HELTEC_VISION_MASTER_E290)
 +#include "LockScreenApplet.h"
 +#include "PowerStatus.h"
@@ -16394,7 +16402,11 @@ index 000000000..db2323e57
 +    if (FlashData<Options>::load(&loaded, "lockscreen") && loaded.version == 1 &&
 +        (loaded.minutes == 0 || loaded.minutes == 1 || loaded.minutes == 5 || loaded.minutes == 15))
 +        options = loaded;
++    uint32_t loadedMode = 0;
++    if (FlashData<uint32_t>::load(&loadedMode, "lockscreen-mode") && loadedMode <= 1)
++        economy = loadedMode;
 +    lastInput = millis();
++    setIntervalFromNow(nextDelay());
 +}
 +
 +bool InkHUD::LockScreenApplet::input(bool unlock)
@@ -16402,7 +16414,7 @@ index 000000000..db2323e57
 +    if (!instance)
 +        return false;
 +    instance->lastInput = millis();
-+    instance->setIntervalFromNow(1000);
++    instance->setIntervalFromNow(instance->nextDelay());
 +    if (!instance->isForeground())
 +        return false;
 +    for (auto *a : instance->inkhud->systemApplets) {
@@ -16414,6 +16426,28 @@ index 000000000..db2323e57
 +    if (unlock)
 +        instance->onButtonLongPress();
 +    return true;
++}
++
++int32_t InkHUD::LockScreenApplet::nextDelay()
++{
++    if (isForeground()) {
++        const uint32_t seconds = economyMode() ? 300 : 60;
++        return (seconds - getValidTime(RTCQuality::RTCQualityDevice, true) % seconds) * 1000;
++    }
++    if (!options.minutes)
++        return INT32_MAX;
++    const uint32_t timeoutMs = options.minutes * 60000UL;
++    const uint32_t elapsed = uint32_t(millis() - lastInput);
++    if (!Throttle::isWithinTimespanMs(lastInput, timeoutMs))
++        return 1;
++    return timeoutMs - elapsed;
++}
++
++void InkHUD::LockScreenApplet::setEconomy(bool enabled)
++{
++    economy = enabled ? 1 : 0;
++    FlashData<uint32_t>::save(&economy, "lockscreen-mode");
++    input();
 +}
 +
 +bool InkHUD::LockScreenApplet::canOpen()
@@ -16470,6 +16504,8 @@ index 000000000..db2323e57
 +    lockRendering = lockRequests = handleInput = true;
 +    static_cast<NotificationApplet *>(inkhud->getSystemApplet("Notification"))->dismiss();
 +    minute = getValidTime(RTCQuality::RTCQualityDevice, true) / 60;
++    lastClockRefresh = lastFullRefresh = millis();
++    setIntervalFromNow(nextDelay());
 +    inkhud->forceUpdate(Drivers::EInk::UpdateTypes::FULL);
 +}
 +
@@ -16477,6 +16513,7 @@ index 000000000..db2323e57
 +{
 +    lockRendering = lockRequests = handleInput = false;
 +    lastInput = millis();
++    setIntervalFromNow(nextDelay());
 +    static_cast<NotificationApplet *>(inkhud->getSystemApplet("Notification"))->dismiss();
 +    inkhud->forceUpdate(Drivers::EInk::UpdateTypes::FULL);
 +}
@@ -16494,15 +16531,19 @@ index 000000000..db2323e57
 +        else if (options.minutes && !Throttle::isWithinTimespanMs(lastInput, options.minutes * 60000UL))
 +            open();
 +    } else {
-+        const uint32_t now = getValidTime(RTCQuality::RTCQualityDevice, true);
-+        uint32_t nowMinute = now / 60;
-+        if (nowMinute != minute) {
++        const uint32_t nowMinute = getValidTime(RTCQuality::RTCQualityDevice, true) / 60;
++        const uint32_t step = economyMode() ? 5 : 1;
++        if (nowMinute / step != minute / step || !Throttle::isWithinTimespanMs(lastClockRefresh, step * 60000UL)) {
 +            minute = nowMinute;
-+            requestUpdate(Drivers::EInk::UpdateTypes::FULL);
++            lastClockRefresh = millis();
++            const uint32_t fullInterval = (economyMode() ? 30 : 10) * 60000UL;
++            const bool clean = !Throttle::isWithinTimespanMs(lastFullRefresh, fullInterval);
++            if (clean)
++                lastFullRefresh = millis();
++            requestUpdate(clean ? Drivers::EInk::UpdateTypes::FULL : Drivers::EInk::UpdateTypes::FAST);
 +        }
-+        return (60 - now % 60) * 1000;
 +    }
-+    return options.minutes || isForeground() ? 1000 : 60000;
++    return nextDelay();
 +}
 +
 +void InkHUD::LockScreenApplet::onRender(bool full)
@@ -16576,10 +16617,10 @@ index 000000000..db2323e57
 +#endif
 diff --git a/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.h b/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.h
 new file mode 100644
-index 000000000..1d90bf9d0
+index 000000000..b2cc06a61
 --- /dev/null
 +++ b/src/graphics/niche/InkHUD/Applets/System/LockScreen/LockScreenApplet.h
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,46 @@
 +#pragma once
 +#if defined(MESHTASTIC_INCLUDE_INKHUD) && defined(HELTEC_VISION_MASTER_E290)
 +#include "UnreadInbox.h"
@@ -16600,6 +16641,8 @@ index 000000000..1d90bf9d0
 +    void setTimeout(uint8_t minutes);
 +    uint8_t timeout() const { return options.minutes; }
 +    void clearUnread();
++    void setEconomy(bool enabled);
++    bool economyMode() const { return economy != 0; }
 +    void onRender(bool full) override;
 +    void onForeground() override;
 +    void onBackground() override;
@@ -16616,6 +16659,10 @@ index 000000000..1d90bf9d0
 +    UnreadInbox inbox;
 +    uint32_t lastInput = 0;
 +    uint32_t minute = UINT32_MAX;
++    uint32_t economy = 0;
++    uint32_t lastFullRefresh = 0;
++    uint32_t lastClockRefresh = 0;
++    int32_t nextDelay();
 +    bool canOpen();
 +};
 +} // namespace NicheGraphics::InkHUD
@@ -16680,10 +16727,10 @@ index 000000000..51f9666eb
 +} // namespace NicheGraphics::InkHUD
 diff --git a/src/graphics/niche/InkHUD/Localization.h b/src/graphics/niche/InkHUD/Localization.h
 new file mode 100644
-index 000000000..c419f1331
+index 000000000..51fb9f978
 --- /dev/null
 +++ b/src/graphics/niche/InkHUD/Localization.h
-@@ -0,0 +1,351 @@
+@@ -0,0 +1,320 @@
 +#pragma once
 +
 +// Generated by tools/generate_localization.py from localization/ru.json.
@@ -16695,320 +16742,289 @@ index 000000000..c419f1331
 +    const char *english;
 +    const char *russian;
 +};
-+inline constexpr Translation
-+    translations
-+        [] =
-+            {
-+                {"Next Tile", "\321\353\345\344\363\376\371\345\345\040\356\352\355\356"},   // Следующее окно
-+                {"Send", "\316\362\357\360\340\342\350\362\374"},                            // Отправить
-+                {"Options", "\335\352\360\340\355"},                                         // Экран
-+                {"Node Config", "\315\340\361\362\360\356\351\352\350\040\363\347\353\340"}, // Настройки узла
-+                {"Save & Shut Down", "\302\373\352\353\376\367\350\362\374"},                // Выключить
-+                {"Exit", "\302\373\365\356\344"},                                            // Выход
-+                {"Back", "\315\340\347\340\344"},                                            // Назад
-+                {"Backlight Off",
-+                 "\302\373\352\353\376\367\350\362\374\040\357\356\344\361\342\345\362\352\363"}, // Выключить подсветку
-+                {"Keep Backlight On",
-+                 "\316\361\362\340\342\350\362\374\040\357\356\344\361\342\345\362\352\363"}, // Оставить подсветку
-+                {"Applets", "\335\352\360\340\355\373"},                                      // Экраны
-+                {"Auto-show", "\300\342\362\356\357\356\352\340\347"},                        // Автопоказ
-+                {"Recents Duration", "\300\352\362\350\342\355\356\361\362\374\040\347\340"}, // Активность за
-+                {"Layout", "\320\340\347\354\345\371\345\355\350\345\040\356\352\356\355"},   // Размещение окон
-+                {"Rotate", "\317\356\342\356\360\356\362"},                                   // Поворот
-+                {"Align Joystick",
-+                 "\315\340\361\362\360\356\350\362\374\040\344\346\356\351\361\362\350\352"}, // Настроить джойстик
-+                {"Notifications", "\323\342\345\344\356\354\353\345\355\350\377"},            // Уведомления
-+                {"Battery Icon", "\307\355\340\367\356\352\040\341\340\362\340\360\345\350"}, // Значок батареи
-+                {"Invert Color", "\310\355\342\345\360\361\350\377\040\366\342\345\362\340"}, // Инверсия цвета
-+                {"Radio Config", "\320\340\344\350\356\361\342\377\347\374"},                 // Радиосвязь
-+                {"Channel", "\312\340\355\340\353"},                                          // Канал
-+                {"Device Config", "\323\361\362\360\356\351\361\362\342\356"},                // Устройство
-+                {"Device", "\323\361\362\360\356\351\361\362\342\356"},                       // Устройство
-+                {"Position", "\312\356\356\360\344\350\355\340\362\373"},                     // Координаты
-+                {"Power", "\317\350\362\340\355\350\345"},                                    // Питание
-+                {"Network", "\321\345\362\374"},                                              // Сеть
-+                {"Display", "\304\350\361\357\353\345\351"},                                  // Дисплей
-+                {"Administration", "\316\341\361\353\363\346\350\342\340\355\350\345"},       // Обслуживание
-+                {"Reset NodeDB",
-+                 "\316\367\350\361\362\350\362\374\040\361\357\350\361\356\352\040\363\347\353\356\342"}, // Очистить список узлов
-+                {"Role: ", "\320\356\353\374\072\040"},                                                   // Роль:
-+                {"Timezone: ", "\327\340\361\356\342\356\351\040\357\356\377\361\072\040"},        // Часовой пояс:
-+                {"GPS None", "\107\120\123\040\356\362\361\363\362\361\362\342\363\345\362"},      // GPS отсутствует
-+                {"Powersave", "\335\355\345\360\343\356\361\341\345\360\345\346\345\355\350\345"}, // Энергосбережение
-+                {"ADC Mult: %.3f", "\314\355\356\346\056\040\300\326\317\072\040\045\056\063\146"}, // Множ. АЦП: %.3f
-+                {"Run on full charge Only",
-+                 "\322\356\353\374\352\356\040\357\360\350\040\357\356\353\355\356\354\040\347\340\360\377\344\345"}, // Только
-+                                                                                                                      // при
-+                                                                                                                      // полном
-+                                                                                                                      // заряде
-+                {"Calibrate ADC", "\312\340\353\350\341\360\356\342\340\362\374\040\300\326\317"}, // Калибровать АЦП
-+                {"WiFi: On", "\127\151\055\106\151\072\040\342\352\353\056"},                      // Wi-Fi: вкл.
-+                {"WiFi: Off", "\127\151\055\106\151\072\040\342\373\352\353\056"},                 // Wi-Fi: выкл.
-+                {"Status: Connected", "\321\345\362\374\040\357\356\344\352\353\376\367\345\355\340"}, // Сеть подключена
-+                {"Status: Not Connected",
-+                 "\321\345\362\374\040\355\345\040\357\356\344\352\353\376\367\345\355\340"}, // Сеть не подключена
-+                {"Signal: %d%%", "\321\350\343\355\340\353\072\040\045\144\045\045"},         // Сигнал: %d%%
-+                {"Host: ", "\325\356\361\362\072\040"},                                       // Хост:
-+                {"12-Hour Clock", "\061\062\055\367\340\361\356\342\356\351\040\364\356\360\354\340\362"}, // 12-часовой формат
-+                {"Units: Imperial",
-+                 "\305\344\350\355\350\366\373\072\040\354\350\353\350\054\040\364\363\362\373"}, // Единицы: мили, футы
-+                {"Units: Metric", "\305\344\350\355\350\366\373\072\040\354\345\362\360\373"},     // Единицы: метры
-+                {"Bluetooth: On", "\102\154\165\145\164\157\157\164\150\072\040\342\352\353\056"}, // Bluetooth: вкл.
-+                {"Bluetooth: Off", "\102\154\165\145\164\157\157\164\150\072\040\342\373\352\353\056"}, // Bluetooth: выкл.
-+                {"Pair Mode: Fixed", "\120\111\116\072\040\357\356\361\362\356\377\355\355\373\351"}, // PIN: постоянный
-+                {"Pair Mode: Random", "\120\111\116\072\040\361\353\363\367\340\351\355\373\351"},    // PIN: случайный
-+                {"Unset", "\315\345\040\347\340\344\340\355"},                                        // Не задан
-+                {"Region: ", "\320\345\343\350\356\355\072\040"},                                     // Регион:
-+                {"Preset: ", "\320\345\346\350\354\072\040"},                                         // Режим:
-+                {"Freq: %.3f MHz", "\327\340\361\362\356\362\340\072\040\045\056\063\146\040\314\303\366"}, // Частота: %.3f МГц
-+                {"Primary", "\316\361\355\356\342\355\356\351"},                                            // Основной
-+                {"Unnamed", "\301\345\347\040\350\354\345\355\350"},                                        // Без имени
-+                {"Ch: ", "\312\340\355\340\353\072\040"},                                                   // Канал:
-+                {"Uplink", "\302\040\115\121\124\124"},                                                     // В MQTT
-+                {"Downlink", "\310\347\040\115\121\124\124"},                                               // Из MQTT
-+                {"Unknown", "\315\345\350\347\342\345\361\362\355\356"},     // Неизвестно
-+                {"Precision: ", "\322\356\367\355\356\361\362\374\072\040"}, // Точность:
-+                {"Position is Off",
-+                 "\312\356\356\360\344\350\355\340\362\373\040\356\362\352\353\376\367\345\355\373"}, // Координаты отключены
-+                {"Client", "\312\353\350\345\355\362"},                                               // Клиент
-+                {"Client Mute", "\322\350\365\350\351\040\352\353\350\345\355\362"},                  // Тихий клиент
-+                {"Client Hidden", "\321\352\360\373\362\373\351\040\352\353\350\345\355\362"}, // Скрытый клиент
-+                {"Client Base", "\301\340\347\356\342\373\351\040\352\353\350\345\355\362"},   // Базовый клиент
-+                {"Lost and Found", "\317\356\350\361\352\040\363\361\362\360\356\351\361\362\342\340"}, // Поиск устройства
-+                {"Tracker", "\322\360\345\352\345\360"},                                                // Трекер
-+                {"Sensor", "\304\340\362\367\350\352"},                                                 // Датчик
-+                {"TAK Tracker", "\322\360\345\352\345\360\040\124\101\113"},                            // Трекер TAK
-+                {"Router", "\314\340\360\370\360\363\362\350\347\340\362\356\360"}, // Маршрутизатор
-+                {"Router Late",
-+                 "\316\362\353\356\346\056\040\354\340\360\370\360\363\362\350\347\340\362\356\360"}, // Отлож. маршрутизатор
-+                {"Repeater", "\320\345\362\360\340\355\361\353\377\362\356\360"},                     // Ретранслятор
-+                {"US/Hawaii", "\321\330\300\072\040\303\340\342\340\351\350"},                        // США: Гавайи
-+                {"US/Alaska", "\321\330\300\072\040\300\353\377\361\352\340"},                        // США: Аляска
-+                {"US/Pacific", "\321\330\300\072\040\362\350\365\356\356\352\345\340\355\361\352\350\351"}, // США: тихоокеанский
-+                {"US/Arizona", "\321\330\300\072\040\300\360\350\347\356\355\340"},                 // США: Аризона
-+                {"US/Mountain", "\321\330\300\072\040\343\356\360\355\373\351"},                    // США: горный
-+                {"US/Central", "\321\330\300\072\040\366\345\355\362\360\340\353\374\355\373\351"}, // США: центральный
-+                {"US/Eastern", "\321\330\300\072\040\342\356\361\362\356\367\355\373\351"},         // США: восточный
-+                {"BR/Brasilia", "\301\360\340\347\350\353\350\377\072\040\301\360\340\347\350\353\350\340"}, // Бразилия: Бразилиа
-+                {"EU/Western", "\307\340\357\340\344\355\340\377\040\305\342\360\356\357\340"}, // Западная Европа
-+                {"EU/Central", "\326\345\355\362\360\340\353\374\355\340\377\040\305\342\360\356\357\340"}, // Центральная Европа
-+                {"EU/Eastern", "\302\356\361\362\356\367\355\340\377\040\305\342\360\356\357\340"}, // Восточная Европа
-+                {"Asia/Kolkata", "\310\355\344\350\377\072\040\312\340\353\374\352\363\362\362\340"}, // Индия: Калькутта
-+                {"Asia/Hong Kong", "\312\350\362\340\351\072\040\303\356\355\352\356\355\343"},  // Китай: Гонконг
-+                {"AU/AWST", "\300\342\361\362\360\340\353\350\377\072\040\347\340\357\340\344"}, // Австралия: запад
-+                {"AU/ACST", "\300\342\361\362\360\340\353\350\377\072\040\366\345\355\362\360"}, // Австралия: центр
-+                {"AU/AEST", "\300\342\361\362\360\340\353\350\377\072\040\342\356\361\362\356\352"}, // Австралия: восток
-+                {"Pacific/NZ", "\315\356\342\340\377\040\307\345\353\340\355\344\350\377"}, // Новая Зеландия
-+                {"Long Moderate", "\304\340\353\374\355\350\351\040\363\354\345\360\345\355\355\373\351"}, // Дальний умеренный
-+                {"Long Fast", "\304\340\353\374\355\350\351\040\341\373\361\362\360\373\351"}, // Дальний быстрый
-+                {"Medium Slow", "\321\360\345\344\355\350\351\040\354\345\344\353\345\355\355\373\351"}, // Средний медленный
-+                {"Medium Fast", "\321\360\345\344\355\350\351\040\341\373\361\362\360\373\351"}, // Средний быстрый
-+                {"Short Slow", "\301\353\350\346\355\350\351\040\354\345\344\353\345\355\355\373\351"}, // Ближний медленный
-+                {"Short Fast", "\301\353\350\346\355\350\351\040\341\373\361\362\360\373\351"}, // Ближний быстрый
-+                {"Short Turbo", "\301\353\350\346\355\350\351\040\362\363\360\341\356"},        // Ближний турбо
-+                {"LongSlow", "\304\340\353\374\355\350\351\040\354\345\344\353\345\355\355\373\351"}, // Дальний медленный
-+                {"LongTurbo", "\304\340\353\374\355\350\351\040\362\363\360\341\356"},                // Дальний турбо
-+                {"Custom", "\321\342\356\351\040\360\345\346\350\354"},                               // Свой режим
-+                {"Invalid", "\316\370\350\341\352\340\040\360\345\346\350\354\340"},                  // Ошибка режима
-+                {"Reset All", "\323\344\340\353\350\362\374\040\342\361\345\040\363\347\353\373"}, // Удалить все узлы
-+                {"Keep Favorites Only",
-+                 "\316\361\362\340\342\350\362\374\040\350\347\341\360\340\355\355\373\345"}, // Оставить избранные
-+                {" mins", "\040\354\350\355\056"},                                            //  мин.
-+                {"Ping", "\317\360\356\342\345\360\352\340\040\361\342\377\347\350"},         // Проверка связи
-+                {"Free Text", "\302\342\345\361\362\350\040\362\345\352\361\362"},            // Ввести текст
-+                {"Ch ", "\312\340\355\340\353\040"},                                          // Канал
-+                {"DM: ", "\313\321\072\040"},                                                 // ЛС:
-+                {"Bat", "\301\340\362\056"},                                                  // Бат.
-+                {"Ch", "\335\364\350\360"},                                                   // Эфир
-+                {"Duty", "\317\345\360\345\344\056"},                                         // Перед.
-+                {"%.2fV", "\045\056\062\146\302"},                                            // %.2fВ
-+                {"Precise", "\322\356\367\355\356"},                                          // Точно
-+                {"No Message", "\315\345\362\040\361\356\356\341\371\345\355\350\351"},       // Нет сообщений
-+                {"No DMs", "\315\345\362\040\353\350\367\355\373\365"},                       // Нет личных
-+                {"Heard: ", "\323\347\353\373\072\040"},                                      // Узлы:
-+                {"node", "\363\347\056"},                                                     // уз.
-+                {"nodes", "\363\347\056"},                                                    // уз.
-+                {"Last ", "\307\340\040"},                                                    // За
-+                {"Channel ", "\312\340\355\340\353\040"},                                     // Канал
-+                {"Public", "\316\341\371\350\351"},                                           // Общий
-+                {"Me", "\337"},                                                               // Я
-+                {"Favorite node position", "\310\347\341\360\340\355\355\373\345\040\363\347\353\373"}, // Избранные узлы
-+                {"will appear here", "\357\356\377\342\377\362\361\377\040\347\344\345\361\374"}, // появятся здесь
-+                {"Node positions", "\312\356\356\360\344\350\355\340\362\373\040\363\347\353\356\342"}, // Координаты узлов
-+                {" Hop", "\040\357\345\360\345\365\056"},                                               //  перех.
-+                {" Hops", "\040\357\345\360\345\365\056"},                                              //  перех.
-+                {"Xkm", "\130\352\354"},                                                                // Xкм
-+                {" days ago", "\040\344\355\056\040\355\340\347\340\344"},                              //  дн. назад
-+                {"Yesterday", "\302\367\345\360\340"},                                                  // Вчера
-+                {"PM", "\357\357"},                                                                     // пп
-+                {"AM", "\344\357"},                                                                     // дп
-+                {"mi", "\354\350"},                                                                     // ми
-+                {"ft", "\364\362"},                                                                     // фт
-+                {"km", "\352\354"},                                                                     // км
-+                {"m", "\354"},                                                                          // м
-+                {"%.0f ft", "\045\056\060\146\040\364\362"},                                            // %.0f фт
-+                {"%.1f mi", "\045\056\061\146\040\354\350"},                                            // %.1f ми
-+                {"%.0f mi", "\045\056\060\146\040\354\350"},                                            // %.0f ми
-+                {"%.1f km", "\045\056\061\146\040\352\354"},                                            // %.1f км
-+                {"%.0f m", "\045\056\060\146\040\354"},                                                 // %.0f м
-+                {"Msg from ", "\321\356\356\341\371\056\040\356\362\040"},                              // Сообщ. от
-+                {"DM from ", "\313\321\040\356\362\040"},                                               // ЛС от
-+                {"Enter this code", "\302\342\345\344\350\362\345\040\375\362\356\362\040\352\356\344"}, // Введите этот код
-+                {"Name: ", "\310\354\377\072\040"},                                                      // Имя:
-+                {"Shutting Down...", "\302\373\352\353\376\367\345\355\350\345\056\056\056"}, // Выключение...
-+                {"Applying changes",
-+                 "\317\360\350\354\345\355\345\355\350\345\040\355\340\361\362\360\356\345\352"}, // Применение настроек
-+                {"Rebooting...", "\317\345\360\345\347\340\343\360\363\347\352\340\056\056\056"}, // Перезагрузка...
-+                {"Align Joystick:",
-+                 "\315\340\361\362\360\356\351\352\340\040\344\346\356\351\361\362\350\352\340"}, // Настройка джойстика
-+                {"Move joystick in the direction indicated",
-+                 "\315\340\352\353\356\355\350\362\345\040\344\346\356\351\361\362\350\352\040"
-+                 "\357\356\040\361\362\360\345\353\352\345"}, // Наклоните джойстик по стрелке
-+                {"Long press to skip",
-+                 "\323\344\345\360\346\350\342\340\351\362\345\040\344\353\377\040\357\360\356\357\363\361\352\340"}, // Удерживайте
-+                                                                                                                      // для
-+                                                                                                                      // пропуска
-+                {"ESC", "\302\373\365"},                                                     // Вых
-+                {"All Messages", "\302\361\345\040\361\356\356\341\371\345\355\350\377"},    // Все сообщения
-+                {"DMs", "\313\350\367\355\373\345\040\361\356\356\341\371\345\355\350\377"}, // Личные сообщения
-+                {"Channel 0", "\312\340\355\340\353\040\060"},                               // Канал 0
-+                {"Channel 1", "\312\340\355\340\353\040\061"},                               // Канал 1
-+                {"Positions", "\312\340\360\362\340\040\363\347\353\356\342"},               // Карта узлов
-+                {"Favorites Map", "\312\340\360\362\340\040\350\347\341\360\340\355\355\373\365"}, // Карта избранных
-+                {"Recents List", "\315\345\344\340\342\355\350\345\040\363\347\353\373"},          // Недавние узлы
-+                {"Heard", "\323\361\353\373\370\340\355\355\373\345\040\363\347\353\373"}, // Услышанные узлы
-+                {"Tip: Finish Setup",
-+                 "\307\340\342\345\360\370\345\355\350\345\040\355\340\361\362\360\356\351\352\350"}, // Завершение настройки
-+                {"- connect antenna",
-+                 "\055\040\357\356\344\352\353\376\367\350\362\345\040\340\355\362\345\355\355\363"}, // - подключите антенну
-+                {"- connect a client app",
-+                 "\055\040\357\356\344\352\353\376\367\350\362\345\040\357\360\350\353\356\346\345\355\350\345"}, // - подключите
-+                                                                                                                  // приложение
-+                {"- set region", "\055\040\342\373\341\345\360\350\362\345\040\360\345\343\350\356\355"}, // - выберите регион
-+                {"- set timezone",
-+                 "\055\040\347\340\344\340\351\362\345\040\367\340\361\356\342\356\351\040\357\356\377\361"}, // - задайте часовой
-+                                                                                                              // пояс
-+                {"More info at meshtastic.org", "\321\357\360\340\342\352\340\072\040\155\145\163\150\164\141\163\164\151\143\056"
-+                                                "\157\162\147"}, // Справка: meshtastic.org
-+                {"Press button to continue", "\312\355\356\357\352\340\072\040\344\340\353\345\345"}, // Кнопка: далее
-+                {"Set Region", "\302\373\341\356\360\040\360\345\343\350\356\355\340"},               // Выбор региона
-+                {"Please select your LoRa region to complete setup.",
-+                 "\302\373\341\345\360\350\362\345\040\360\345\343\350\356\355\040\114\157\122\141\040\344\353\377\040\347\340"
-+                 "\342\345\360"
-+                 "\370\345\355\350\377\040\355\340\361\362\360\356\351\352\350\056"}, // Выберите регион LoRa для завершения
-+                                                                                      // настройки.
-+                {"Press button to choose", "\312\355\356\357\352\340\072\040\342\373\341\356\360"}, // Кнопка: выбор
-+                {"Tip: Shutdown", "\302\373\352\353\376\367\345\355\350\345"},                      // Выключение
-+                {"Tip: Customization", "\315\340\361\362\360\356\351\352\340\040\375\352\360\340\355\340"}, // Настройка экрана
-+                {"Tip: Buttons", "\323\357\360\340\342\353\345\355\350\345"}, // Управление
-+                {"User Button",
-+                 "\312\355\356\357\352\340\040\357\356\353\374\347\356\342\340\362\345\353\377"}, // Кнопка пользователя
-+                {"- short press: next", "\055\040\355\340\346\340\362\350\345\072\040\344\340\353\345\345"}, // - нажатие: далее
-+                {"- long press: select or open menu", "\055\040\363\344\345\360\346\340\355\350\345\072\040\342\373\341\356\360"
-+                                                      "\040\350\353\350\040\354\345\355\376"}, // -
-+                                                                                               // удержание:
-+                                                                                               // выбор или
-+                                                                                               // меню
-+                {"Rocker + Button", "\312\340\367\345\353\374\352\340\040\350\040\352\355\356\357\352\340"}, // Качелька и кнопка
-+                {"- center press: open menu or select",
-+                 "\055\040\366\345\355\362\360\072\040\354\345\355\376\040\350\353\350\040\342\373\341\356\360"}, // - центр: меню
-+                                                                                                                  // или выбор
-+                {"- left/right: applet nav",
-+                 "\055\040\342\353\345\342\356\057\342\357\360\340\342\356\072\040\375\352\360\340\355\373"}, // - влево/вправо:
-+                                                                                                              // экраны
-+                {"- in menu: up/down",
-+                 "\055\040\342\040\354\345\355\376\072\040\342\342\345\360\365\057\342\355\350\347"}, // - в меню: вверх/вниз
-+                {"Joystick", "\304\346\356\351\361\362\350\352"},                                     // Джойстик
-+                {"- press: open menu or select",
-+                 "\055\040\355\340\346\340\362\350\345\072\040\354\345\355\376\040\350\353\350\040\342\373\341\356\360"}, // -
-+                                                                                                                          // нажатие:
-+                                                                                                                          // меню
-+                                                                                                                          // или
-+                                                                                                                          // выбор
-+                {"Exit Button", "\312\355\356\357\352\340\040\342\373\365\356\344\340"}, // Кнопка выхода
-+                {"- press: switch tile or close menu",
-+                 "\055\040\355\340\346\340\362\350\345\072\040\356\352\355\356\040\350\353\350\040\342\373\365\356\344"}, // -
-+                                                                                                                          // нажатие:
-+                                                                                                                          // окно
-+                                                                                                                          // или
-+                                                                                                                          // выход
-+                {"Tip: Rotation", "\317\356\342\356\360\356\362\040\375\352\360\340\355\340"}, // Поворот экрана
-+                {"  -  A Heads-Up Display", "\040\040\055\040\040\375\352\360\340\355\040\363\347\353\340"}, //   -  экран узла
-+                {
-+                    "Before removing power, please shut down from InkHUD menu, or a client app.\n\nThis ensures data is saved.",
-+                    "\317\345\360\345\344\040\361\355\377\362\350\345\354\040\357\350\362\340\355\350\377\040\342\373\352\353\376"
-+                    "\367\350\362"
-+                    "\345\040\363\347\345\353\040\367\345\360\345\347\040\354\345\355\376\040\350\353\350\040\357\360\350\353\356"
-+                    "\346\345\355"
-+                    "\350\345\054\040\367\362\356\341\373\040\361\356\365\360\340\355\350\362\374\040\344\340\355\355\373\345"
-+                    "\056"}, // Перед
-+                             // снятием
-+                             // питания
-+                             // выключите
-+                             // узел
-+                             // через
-+                             // меню или
-+                             // приложение,
-+                             // чтобы
-+                             // сохранить
-+                             // данные.
-+                {"Configure & control display with the InkHUD menu. Optional features, layout, rotation, and more.",
-+                 "\314\345\355\376\040\111\156\153\110\125\104\072\040\342\373\341\356\360\040\375\352\360\340\355\356\342\054"
-+                 "\040\360\340"
-+                 "\347\354\345\371\345\355\350\345\040\356\352\356\355\054\040\357\356\342\356\360\356\362\040\350\040\344\360"
-+                 "\363\343\350"
-+                 "\345\040\355\340\361\362\360\356\351\352\350\056"}, // Меню InkHUD: выбор экранов, размещение окон, поворот и
-+                                                                      // другие настройки.
-+                {"To rotate the display, use the InkHUD menu. Long-press the user button > Options > Rotate.",
-+                 "\304\353\377\040\357\356\342\356\360\356\362\340\040\363\344\345\360\346\350\342\340\351\362\345\040\352\355"
-+                 "\356\357\352"
-+                 "\363\072\040\335\352\360\340\355\040\076\040\317\356\342\356\360\356\362\056"}, // Для поворота удерживайте
-+                                                                                                  // кнопку: Экран > Поворот.
-+                {"To rotate the display, use the InkHUD menu. Press the user button > Options > Rotate.",
-+                 "\304\353\377\040\357\356\342\356\360\356\362\340\040\355\340\346\354\350\362\345\040\352\355\356\357\352\363"
-+                 "\072\040\335"
-+                 "\352\360\340\355\040\076\040\317\356\342\356\360\356\362\056"}, // Для поворота нажмите кнопку: Экран > Поворот.
-+                {"ShortTurbo", "\301\353\350\346\355\350\351\040\362\363\360\341\356"}, // Ближний турбо
-+                {"ShortSlow", "\301\353\350\346\355\350\351\040\354\345\344\353\345\355\355\373\351"}, // Ближний медленный
-+                {"ShortFast", "\301\353\350\346\355\350\351\040\341\373\361\362\360\373\351"}, // Ближний быстрый
-+                {"MediumSlow", "\321\360\345\344\355\350\351\040\354\345\344\353\345\355\355\373\351"}, // Средний медленный
-+                {"MediumFast", "\321\360\345\344\355\350\351\040\341\373\361\362\360\373\351"}, // Средний быстрый
-+                {"LongFast", "\304\340\353\374\355\350\351\040\341\373\361\362\360\373\351"},   // Дальний быстрый
-+                {"LongMod", "\304\340\353\374\355\350\351\040\363\354\345\360\345\355\355\373\351"}, // Дальний умеренный
-+                {"50 m", "\065\060\040\354"},                                                        // 50 м
-+                {"150 ft", "\061\065\060\040\364\362"},                                              // 150 фт
-+                {"90 m", "\071\060\040\354"},                                                        // 90 м
-+                {"300 ft", "\063\060\060\040\364\362"},                                              // 300 фт
-+                {"200 m", "\062\060\060\040\354"},                                                   // 200 м
-+                {"600 ft", "\066\060\060\040\364\362"},                                              // 600 фт
-+                {"350 m", "\063\065\060\040\354"},                                                   // 350 м
-+                {"0.2 mi", "\060\056\062\040\354\350"},                                              // 0.2 ми
-+                {"700 m", "\067\060\060\040\354"},                                                   // 700 м
-+                {"0.5 mi", "\060\056\065\040\354\350"},                                              // 0.5 ми
-+                {"1.5 km", "\061\056\065\040\352\354"},                                              // 1.5 км
-+                {"0.9 mi", "\060\056\071\040\354\350"},                                              // 0.9 ми
-+                {"2.9 km", "\062\056\071\040\352\354"},                                              // 2.9 км
-+                {"1.8 mi", "\061\056\070\040\354\350"},                                              // 1.8 ми
-+                {"5.8 km", "\065\056\070\040\352\354"},                                              // 5.8 км
-+                {"3.6 mi", "\063\056\066\040\354\350"},                                              // 3.6 ми
-+                {"12 km", "\061\062\040\352\354"},                                                   // 12 км
-+                {"7.3 mi", "\067\056\063\040\354\350"},                                              // 7.3 ми
-+                {"23 km", "\062\063\040\352\354"},                                                   // 23 км
-+                {"15 mi", "\061\065\040\354\350"},                                                   // 15 ми
-+                {"From:", "\316\362\072"},                                                           // От:
-+                {"Lock screen", "\307\340\361\362\340\342\352\340"},                                 // Заставка
-+                {"Lock now", "\302\352\353\376\367\350\362\374\040\361\345\351\367\340\361"}, // Включить сейчас
-+                {"Auto: ", "\300\342\362\356\072\040"},                                       // Авто:
-+                {"Off", "\302\373\352\353\056"},                                              // Выкл.
-+                {"After 1 min", "\327\345\360\345\347\040\061\040\354\350\355\056"},          // Через 1 мин.
-+                {"After 5 min", "\327\345\360\345\347\040\065\040\354\350\355\056"},          // Через 5 мин.
-+                {"After 15 min", "\327\345\360\345\347\040\061\065\040\354\350\355\056"},     // Через 15 мин.
-+                {"Mark all read", "\317\360\356\367\350\362\340\362\374\040\342\361\270"},    // Прочитать всё
-+                {"Set time in app", "\307\340\344\340\351\362\345\040\342\360\345\354\377"},  // Задайте время
-+                {"Unread: ", "\315\356\342\373\345\072\040"},                                 // Новые:
-+                {"No unread messages", "\315\356\342\373\365\040\355\345\362"},               // Новых нет
-+                {"More: ", "\305\371\270\072\040"},                                           // Ещё:
-+                {"Hold to unlock", "\323\344\345\360\346\340\362\374\072\040\342\373\365\356\344"}, // Удержать: выход
++inline constexpr Translation translations[] = {
++    {"Next Tile", "\321\353\345\344\363\376\371\345\345\040\356\352\355\356"},   // Следующее окно
++    {"Send", "\316\362\357\360\340\342\350\362\374"},                            // Отправить
++    {"Options", "\335\352\360\340\355"},                                         // Экран
++    {"Node Config", "\315\340\361\362\360\356\351\352\350\040\363\347\353\340"}, // Настройки узла
++    {"Save & Shut Down", "\302\373\352\353\376\367\350\362\374"},                // Выключить
++    {"Exit", "\302\373\365\356\344"},                                            // Выход
++    {"Back", "\315\340\347\340\344"},                                            // Назад
++    {"Backlight Off", "\302\373\352\353\376\367\350\362\374\040\357\356\344\361\342\345\362\352\363"}, // Выключить подсветку
++    {"Keep Backlight On", "\316\361\362\340\342\350\362\374\040\357\356\344\361\342\345\362\352\363"}, // Оставить подсветку
++    {"Applets", "\335\352\360\340\355\373"},                                                           // Экраны
++    {"Auto-show", "\300\342\362\356\357\356\352\340\347"},                                             // Автопоказ
++    {"Recents Duration", "\300\352\362\350\342\355\356\361\362\374\040\347\340"}, // Активность за
++    {"Layout", "\320\340\347\354\345\371\345\355\350\345\040\356\352\356\355"},   // Размещение окон
++    {"Rotate", "\317\356\342\356\360\356\362"},                                   // Поворот
++    {"Align Joystick", "\315\340\361\362\360\356\350\362\374\040\344\346\356\351\361\362\350\352"}, // Настроить джойстик
++    {"Notifications", "\323\342\345\344\356\354\353\345\355\350\377"},                              // Уведомления
++    {"Battery Icon", "\307\355\340\367\356\352\040\341\340\362\340\360\345\350"},                   // Значок батареи
++    {"Invert Color", "\310\355\342\345\360\361\350\377\040\366\342\345\362\340"},                   // Инверсия цвета
++    {"Radio Config", "\320\340\344\350\356\361\342\377\347\374"},                                   // Радиосвязь
++    {"Channel", "\312\340\355\340\353"},                                                            // Канал
++    {"Device Config", "\323\361\362\360\356\351\361\362\342\356"},                                  // Устройство
++    {"Device", "\323\361\362\360\356\351\361\362\342\356"},                                         // Устройство
++    {"Position", "\312\356\356\360\344\350\355\340\362\373"},                                       // Координаты
++    {"Power", "\317\350\362\340\355\350\345"},                                                      // Питание
++    {"Network", "\321\345\362\374"},                                                                // Сеть
++    {"Display", "\304\350\361\357\353\345\351"},                                                    // Дисплей
++    {"Administration", "\316\341\361\353\363\346\350\342\340\355\350\345"},                         // Обслуживание
++    {"Reset NodeDB",
++     "\316\367\350\361\362\350\362\374\040\361\357\350\361\356\352\040\363\347\353\356\342"}, // Очистить список узлов
++    {"Role: ", "\320\356\353\374\072\040"},                                                   // Роль:
++    {"Timezone: ", "\327\340\361\356\342\356\351\040\357\356\377\361\072\040"},               // Часовой пояс:
++    {"GPS None", "\107\120\123\040\356\362\361\363\362\361\362\342\363\345\362"},             // GPS отсутствует
++    {"Powersave", "\335\355\345\360\343\356\361\341\345\360\345\346\345\355\350\345"},        // Энергосбережение
++    {"ADC Mult: %.3f", "\314\355\356\346\056\040\300\326\317\072\040\045\056\063\146"}, // Множ. АЦП: %.3f
++    {"Run on full charge Only",
++     "\322\356\353\374\352\356\040\357\360\350\040\357\356\353\355\356\354\040\347\340\360\377\344\345"}, // Только при полном
++                                                                                                          // заряде
++    {"Calibrate ADC", "\312\340\353\350\341\360\356\342\340\362\374\040\300\326\317"},     // Калибровать АЦП
++    {"WiFi: On", "\127\151\055\106\151\072\040\342\352\353\056"},                          // Wi-Fi: вкл.
++    {"WiFi: Off", "\127\151\055\106\151\072\040\342\373\352\353\056"},                     // Wi-Fi: выкл.
++    {"Status: Connected", "\321\345\362\374\040\357\356\344\352\353\376\367\345\355\340"}, // Сеть подключена
++    {"Status: Not Connected", "\321\345\362\374\040\355\345\040\357\356\344\352\353\376\367\345\355\340"}, // Сеть не подключена
++    {"Signal: %d%%", "\321\350\343\355\340\353\072\040\045\144\045\045"},                                  // Сигнал: %d%%
++    {"Host: ", "\325\356\361\362\072\040"},                                                                // Хост:
++    {"12-Hour Clock", "\061\062\055\367\340\361\356\342\356\351\040\364\356\360\354\340\362"}, // 12-часовой формат
++    {"Units: Imperial", "\305\344\350\355\350\366\373\072\040\354\350\353\350\054\040\364\363\362\373"}, // Единицы: мили, футы
++    {"Units: Metric", "\305\344\350\355\350\366\373\072\040\354\345\362\360\373"},              // Единицы: метры
++    {"Bluetooth: On", "\102\154\165\145\164\157\157\164\150\072\040\342\352\353\056"},          // Bluetooth: вкл.
++    {"Bluetooth: Off", "\102\154\165\145\164\157\157\164\150\072\040\342\373\352\353\056"},     // Bluetooth: выкл.
++    {"Pair Mode: Fixed", "\120\111\116\072\040\357\356\361\362\356\377\355\355\373\351"},       // PIN: постоянный
++    {"Pair Mode: Random", "\120\111\116\072\040\361\353\363\367\340\351\355\373\351"},          // PIN: случайный
++    {"Unset", "\315\345\040\347\340\344\340\355"},                                              // Не задан
++    {"Region: ", "\320\345\343\350\356\355\072\040"},                                           // Регион:
++    {"Preset: ", "\320\345\346\350\354\072\040"},                                               // Режим:
++    {"Freq: %.3f MHz", "\327\340\361\362\356\362\340\072\040\045\056\063\146\040\314\303\366"}, // Частота: %.3f МГц
++    {"Primary", "\316\361\355\356\342\355\356\351"},                                            // Основной
++    {"Unnamed", "\301\345\347\040\350\354\345\355\350"},                                        // Без имени
++    {"Ch: ", "\312\340\355\340\353\072\040"},                                                   // Канал:
++    {"Uplink", "\302\040\115\121\124\124"},                                                     // В MQTT
++    {"Downlink", "\310\347\040\115\121\124\124"},                                               // Из MQTT
++    {"Unknown", "\315\345\350\347\342\345\361\362\355\356"},                                    // Неизвестно
++    {"Precision: ", "\322\356\367\355\356\361\362\374\072\040"},                                // Точность:
++    {"Position is Off",
++     "\312\356\356\360\344\350\355\340\362\373\040\356\362\352\353\376\367\345\355\373"}, // Координаты отключены
++    {"Client", "\312\353\350\345\355\362"},                                               // Клиент
++    {"Client Mute", "\322\350\365\350\351\040\352\353\350\345\355\362"},                  // Тихий клиент
++    {"Client Hidden", "\321\352\360\373\362\373\351\040\352\353\350\345\355\362"},        // Скрытый клиент
++    {"Client Base", "\301\340\347\356\342\373\351\040\352\353\350\345\355\362"},          // Базовый клиент
++    {"Lost and Found", "\317\356\350\361\352\040\363\361\362\360\356\351\361\362\342\340"}, // Поиск устройства
++    {"Tracker", "\322\360\345\352\345\360"},                                                // Трекер
++    {"Sensor", "\304\340\362\367\350\352"},                                                 // Датчик
++    {"TAK Tracker", "\322\360\345\352\345\360\040\124\101\113"},                            // Трекер TAK
++    {"Router", "\314\340\360\370\360\363\362\350\347\340\362\356\360"},                     // Маршрутизатор
++    {"Router Late", "\316\362\353\356\346\056\040\354\340\360\370\360\363\362\350\347\340\362\356\360"}, // Отлож. маршрутизатор
++    {"Repeater", "\320\345\362\360\340\355\361\353\377\362\356\360"},                           // Ретранслятор
++    {"US/Hawaii", "\321\330\300\072\040\303\340\342\340\351\350"},                              // США: Гавайи
++    {"US/Alaska", "\321\330\300\072\040\300\353\377\361\352\340"},                              // США: Аляска
++    {"US/Pacific", "\321\330\300\072\040\362\350\365\356\356\352\345\340\355\361\352\350\351"}, // США: тихоокеанский
++    {"US/Arizona", "\321\330\300\072\040\300\360\350\347\356\355\340"},                         // США: Аризона
++    {"US/Mountain", "\321\330\300\072\040\343\356\360\355\373\351"},                            // США: горный
++    {"US/Central", "\321\330\300\072\040\366\345\355\362\360\340\353\374\355\373\351"},         // США: центральный
++    {"US/Eastern", "\321\330\300\072\040\342\356\361\362\356\367\355\373\351"},                 // США: восточный
++    {"BR/Brasilia", "\301\360\340\347\350\353\350\377\072\040\301\360\340\347\350\353\350\340"}, // Бразилия: Бразилиа
++    {"EU/Western", "\307\340\357\340\344\355\340\377\040\305\342\360\356\357\340"},              // Западная Европа
++    {"EU/Central", "\326\345\355\362\360\340\353\374\355\340\377\040\305\342\360\356\357\340"}, // Центральная Европа
++    {"EU/Eastern", "\302\356\361\362\356\367\355\340\377\040\305\342\360\356\357\340"},         // Восточная Европа
++    {"Asia/Kolkata", "\310\355\344\350\377\072\040\312\340\353\374\352\363\362\362\340"},       // Индия: Калькутта
++    {"Asia/Hong Kong", "\312\350\362\340\351\072\040\303\356\355\352\356\355\343"},             // Китай: Гонконг
++    {"AU/AWST", "\300\342\361\362\360\340\353\350\377\072\040\347\340\357\340\344"},            // Австралия: запад
++    {"AU/ACST", "\300\342\361\362\360\340\353\350\377\072\040\366\345\355\362\360"},            // Австралия: центр
++    {"AU/AEST", "\300\342\361\362\360\340\353\350\377\072\040\342\356\361\362\356\352"},       // Австралия: восток
++    {"Pacific/NZ", "\315\356\342\340\377\040\307\345\353\340\355\344\350\377"},                // Новая Зеландия
++    {"Long Moderate", "\304\340\353\374\355\350\351\040\363\354\345\360\345\355\355\373\351"}, // Дальний умеренный
++    {"Long Fast", "\304\340\353\374\355\350\351\040\341\373\361\362\360\373\351"},             // Дальний быстрый
++    {"Medium Slow", "\321\360\345\344\355\350\351\040\354\345\344\353\345\355\355\373\351"}, // Средний медленный
++    {"Medium Fast", "\321\360\345\344\355\350\351\040\341\373\361\362\360\373\351"},         // Средний быстрый
++    {"Short Slow", "\301\353\350\346\355\350\351\040\354\345\344\353\345\355\355\373\351"},  // Ближний медленный
++    {"Short Fast", "\301\353\350\346\355\350\351\040\341\373\361\362\360\373\351"},          // Ближний быстрый
++    {"Short Turbo", "\301\353\350\346\355\350\351\040\362\363\360\341\356"},                 // Ближний турбо
++    {"LongSlow", "\304\340\353\374\355\350\351\040\354\345\344\353\345\355\355\373\351"},    // Дальний медленный
++    {"LongTurbo", "\304\340\353\374\355\350\351\040\362\363\360\341\356"},                   // Дальний турбо
++    {"Custom", "\321\342\356\351\040\360\345\346\350\354"},                                  // Свой режим
++    {"Invalid", "\316\370\350\341\352\340\040\360\345\346\350\354\340"},                     // Ошибка режима
++    {"Reset All", "\323\344\340\353\350\362\374\040\342\361\345\040\363\347\353\373"},       // Удалить все узлы
++    {"Keep Favorites Only", "\316\361\362\340\342\350\362\374\040\350\347\341\360\340\355\355\373\345"}, // Оставить избранные
++    {" mins", "\040\354\350\355\056"},                                                                   //  мин.
++    {"Ping", "\317\360\356\342\345\360\352\340\040\361\342\377\347\350"},                    // Проверка связи
++    {"Free Text", "\302\342\345\361\362\350\040\362\345\352\361\362"},                       // Ввести текст
++    {"Ch ", "\312\340\355\340\353\040"},                                                     // Канал
++    {"DM: ", "\313\321\072\040"},                                                            // ЛС:
++    {"Bat", "\301\340\362\056"},                                                             // Бат.
++    {"Ch", "\335\364\350\360"},                                                              // Эфир
++    {"Duty", "\317\345\360\345\344\056"},                                                    // Перед.
++    {"%.2fV", "\045\056\062\146\302"},                                                       // %.2fВ
++    {"Precise", "\322\356\367\355\356"},                                                     // Точно
++    {"No Message", "\315\345\362\040\361\356\356\341\371\345\355\350\351"},                  // Нет сообщений
++    {"No DMs", "\315\345\362\040\353\350\367\355\373\365"},                                  // Нет личных
++    {"Heard: ", "\323\347\353\373\072\040"},                                                 // Узлы:
++    {"node", "\363\347\056"},                                                                // уз.
++    {"nodes", "\363\347\056"},                                                               // уз.
++    {"Last ", "\307\340\040"},                                                               // За
++    {"Channel ", "\312\340\355\340\353\040"},                                                // Канал
++    {"Public", "\316\341\371\350\351"},                                                      // Общий
++    {"Me", "\337"},                                                                          // Я
++    {"Favorite node position", "\310\347\341\360\340\355\355\373\345\040\363\347\353\373"},  // Избранные узлы
++    {"will appear here", "\357\356\377\342\377\362\361\377\040\347\344\345\361\374"},        // появятся здесь
++    {"Node positions", "\312\356\356\360\344\350\355\340\362\373\040\363\347\353\356\342"},  // Координаты узлов
++    {" Hop", "\040\357\345\360\345\365\056"},                                                //  перех.
++    {" Hops", "\040\357\345\360\345\365\056"},                                               //  перех.
++    {"Xkm", "\130\352\354"},                                                                 // Xкм
++    {" days ago", "\040\344\355\056\040\355\340\347\340\344"},                               //  дн. назад
++    {"Yesterday", "\302\367\345\360\340"},                                                   // Вчера
++    {"PM", "\357\357"},                                                                      // пп
++    {"AM", "\344\357"},                                                                      // дп
++    {"mi", "\354\350"},                                                                      // ми
++    {"ft", "\364\362"},                                                                      // фт
++    {"km", "\352\354"},                                                                      // км
++    {"m", "\354"},                                                                           // м
++    {"%.0f ft", "\045\056\060\146\040\364\362"},                                             // %.0f фт
++    {"%.1f mi", "\045\056\061\146\040\354\350"},                                             // %.1f ми
++    {"%.0f mi", "\045\056\060\146\040\354\350"},                                             // %.0f ми
++    {"%.1f km", "\045\056\061\146\040\352\354"},                                             // %.1f км
++    {"%.0f m", "\045\056\060\146\040\354"},                                                  // %.0f м
++    {"Msg from ", "\321\356\356\341\371\056\040\356\362\040"},                               // Сообщ. от
++    {"DM from ", "\313\321\040\356\362\040"},                                                // ЛС от
++    {"Enter this code", "\302\342\345\344\350\362\345\040\375\362\356\362\040\352\356\344"}, // Введите этот код
++    {"Name: ", "\310\354\377\072\040"},                                                      // Имя:
++    {"Shutting Down...", "\302\373\352\353\376\367\345\355\350\345\056\056\056"},            // Выключение...
++    {"Applying changes", "\317\360\350\354\345\355\345\355\350\345\040\355\340\361\362\360\356\345\352"}, // Применение настроек
++    {"Rebooting...", "\317\345\360\345\347\340\343\360\363\347\352\340\056\056\056"}, // Перезагрузка...
++    {"Align Joystick:", "\315\340\361\362\360\356\351\352\340\040\344\346\356\351\361\362\350\352\340"}, // Настройка джойстика
++    {"Move joystick in the direction indicated", "\315\340\352\353\356\355\350\362\345\040\344\346\356\351\361\362\350\352\040"
++                                                 "\357\356\040\361\362\360\345\353\352\345"}, // Наклоните джойстик по стрелке
++    {"Long press to skip",
++     "\323\344\345\360\346\350\342\340\351\362\345\040\344\353\377\040\357\360\356\357\363\361\352\340"}, // Удерживайте для
++                                                                                                          // пропуска
++    {"ESC", "\302\373\365"},                                                           // Вых
++    {"All Messages", "\302\361\345\040\361\356\356\341\371\345\355\350\377"},          // Все сообщения
++    {"DMs", "\313\350\367\355\373\345\040\361\356\356\341\371\345\355\350\377"},       // Личные сообщения
++    {"Channel 0", "\312\340\355\340\353\040\060"},                                     // Канал 0
++    {"Channel 1", "\312\340\355\340\353\040\061"},                                     // Канал 1
++    {"Positions", "\312\340\360\362\340\040\363\347\353\356\342"},                     // Карта узлов
++    {"Favorites Map", "\312\340\360\362\340\040\350\347\341\360\340\355\355\373\365"}, // Карта избранных
++    {"Recents List", "\315\345\344\340\342\355\350\345\040\363\347\353\373"},          // Недавние узлы
++    {"Heard", "\323\361\353\373\370\340\355\355\373\345\040\363\347\353\373"},         // Услышанные узлы
++    {"Tip: Finish Setup",
++     "\307\340\342\345\360\370\345\355\350\345\040\355\340\361\362\360\356\351\352\350"}, // Завершение настройки
++    {"- connect antenna",
++     "\055\040\357\356\344\352\353\376\367\350\362\345\040\340\355\362\345\355\355\363"}, // - подключите антенну
++    {"- connect a client app",
++     "\055\040\357\356\344\352\353\376\367\350\362\345\040\357\360\350\353\356\346\345\355\350\345"}, // - подключите приложение
++    {"- set region", "\055\040\342\373\341\345\360\350\362\345\040\360\345\343\350\356\355"}, // - выберите регион
++    {"- set timezone",
++     "\055\040\347\340\344\340\351\362\345\040\367\340\361\356\342\356\351\040\357\356\377\361"}, // - задайте часовой пояс
++    {"More info at meshtastic.org",
++     "\321\357\360\340\342\352\340\072\040\155\145\163\150\164\141\163\164\151\143\056\157\162\147"}, // Справка: meshtastic.org
++    {"Press button to continue", "\312\355\356\357\352\340\072\040\344\340\353\345\345"},             // Кнопка: далее
++    {"Set Region", "\302\373\341\356\360\040\360\345\343\350\356\355\340"},                           // Выбор региона
++    {"Please select your LoRa region to complete setup.",
++     "\302\373\341\345\360\350\362\345\040\360\345\343\350\356\355\040\114\157\122\141\040\344\353\377\040\347\340\342\345\360"
++     "\370\345\355\350\377\040\355\340\361\362\360\356\351\352\350\056"}, // Выберите регион LoRa для завершения настройки.
++    {"Press button to choose", "\312\355\356\357\352\340\072\040\342\373\341\356\360"},         // Кнопка: выбор
++    {"Tip: Shutdown", "\302\373\352\353\376\367\345\355\350\345"},                              // Выключение
++    {"Tip: Customization", "\315\340\361\362\360\356\351\352\340\040\375\352\360\340\355\340"}, // Настройка экрана
++    {"Tip: Buttons", "\323\357\360\340\342\353\345\355\350\345"},                               // Управление
++    {"User Button", "\312\355\356\357\352\340\040\357\356\353\374\347\356\342\340\362\345\353\377"}, // Кнопка пользователя
++    {"- short press: next", "\055\040\355\340\346\340\362\350\345\072\040\344\340\353\345\345"}, // - нажатие: далее
++    {"- long press: select or open menu",
++     "\055\040\363\344\345\360\346\340\355\350\345\072\040\342\373\341\356\360\040\350\353\350\040\354\345\355\376"}, // -
++                                                                                                                      // удержание:
++                                                                                                                      // выбор или
++                                                                                                                      // меню
++    {"Rocker + Button", "\312\340\367\345\353\374\352\340\040\350\040\352\355\356\357\352\340"}, // Качелька и кнопка
++    {"- center press: open menu or select",
++     "\055\040\366\345\355\362\360\072\040\354\345\355\376\040\350\353\350\040\342\373\341\356\360"}, // - центр: меню или выбор
++    {"- left/right: applet nav",
++     "\055\040\342\353\345\342\356\057\342\357\360\340\342\356\072\040\375\352\360\340\355\373"}, // - влево/вправо: экраны
++    {"- in menu: up/down",
++     "\055\040\342\040\354\345\355\376\072\040\342\342\345\360\365\057\342\355\350\347"}, // - в меню: вверх/вниз
++    {"Joystick", "\304\346\356\351\361\362\350\352"},                                     // Джойстик
++    {"- press: open menu or select",
++     "\055\040\355\340\346\340\362\350\345\072\040\354\345\355\376\040\350\353\350\040\342\373\341\356\360"}, // - нажатие: меню
++                                                                                                              // или выбор
++    {"Exit Button", "\312\355\356\357\352\340\040\342\373\365\356\344\340"}, // Кнопка выхода
++    {"- press: switch tile or close menu",
++     "\055\040\355\340\346\340\362\350\345\072\040\356\352\355\356\040\350\353\350\040\342\373\365\356\344"}, // - нажатие: окно
++                                                                                                              // или выход
++    {"Tip: Rotation", "\317\356\342\356\360\356\362\040\375\352\360\340\355\340"},               // Поворот экрана
++    {"  -  A Heads-Up Display", "\040\040\055\040\040\375\352\360\340\355\040\363\347\353\340"}, //   -  экран узла
++    {"Before removing power, please shut down from InkHUD menu, or a client app.\n\nThis ensures data is saved.",
++     "\317\345\360\345\344\040\361\355\377\362\350\345\354\040\357\350\362\340\355\350\377\040\342\373\352\353\376\367\350\362"
++     "\345\040\363\347\345\353\040\367\345\360\345\347\040\354\345\355\376\040\350\353\350\040\357\360\350\353\356\346\345\355"
++     "\350\345\054\040\367\362\356\341\373\040\361\356\365\360\340\355\350\362\374\040\344\340\355\355\373\345\056"}, // Перед
++                                                                                                                      // снятием
++                                                                                                                      // питания
++                                                                                                                      // выключите
++                                                                                                                      // узел
++                                                                                                                      // через
++                                                                                                                      // меню или
++                                                                                                                      // приложение,
++                                                                                                                      // чтобы
++                                                                                                                      // сохранить
++                                                                                                                      // данные.
++    {"Configure & control display with the InkHUD menu. Optional features, layout, rotation, and more.",
++     "\314\345\355\376\040\111\156\153\110\125\104\072\040\342\373\341\356\360\040\375\352\360\340\355\356\342\054\040\360\340"
++     "\347\354\345\371\345\355\350\345\040\356\352\356\355\054\040\357\356\342\356\360\356\362\040\350\040\344\360\363\343\350"
++     "\345\040\355\340\361\362\360\356\351\352\350\056"}, // Меню InkHUD: выбор экранов, размещение окон, поворот и другие
++                                                          // настройки.
++    {"To rotate the display, use the InkHUD menu. Long-press the user button > Options > Rotate.",
++     "\304\353\377\040\357\356\342\356\360\356\362\340\040\363\344\345\360\346\350\342\340\351\362\345\040\352\355\356\357\352"
++     "\363\072\040\335\352\360\340\355\040\076\040\317\356\342\356\360\356\362\056"}, // Для поворота удерживайте кнопку: Экран >
++                                                                                      // Поворот.
++    {"To rotate the display, use the InkHUD menu. Press the user button > Options > Rotate.",
++     "\304\353\377\040\357\356\342\356\360\356\362\340\040\355\340\346\354\350\362\345\040\352\355\356\357\352\363\072\040\335"
++     "\352\360\340\355\040\076\040\317\356\342\356\360\356\362\056"}, // Для поворота нажмите кнопку: Экран > Поворот.
++    {"ShortTurbo", "\301\353\350\346\355\350\351\040\362\363\360\341\356"},                 // Ближний турбо
++    {"ShortSlow", "\301\353\350\346\355\350\351\040\354\345\344\353\345\355\355\373\351"},  // Ближний медленный
++    {"ShortFast", "\301\353\350\346\355\350\351\040\341\373\361\362\360\373\351"},          // Ближний быстрый
++    {"MediumSlow", "\321\360\345\344\355\350\351\040\354\345\344\353\345\355\355\373\351"}, // Средний медленный
++    {"MediumFast", "\321\360\345\344\355\350\351\040\341\373\361\362\360\373\351"},         // Средний быстрый
++    {"LongFast", "\304\340\353\374\355\350\351\040\341\373\361\362\360\373\351"},           // Дальний быстрый
++    {"LongMod", "\304\340\353\374\355\350\351\040\363\354\345\360\345\355\355\373\351"},    // Дальний умеренный
++    {"50 m", "\065\060\040\354"},                                                           // 50 м
++    {"150 ft", "\061\065\060\040\364\362"},                                                 // 150 фт
++    {"90 m", "\071\060\040\354"},                                                           // 90 м
++    {"300 ft", "\063\060\060\040\364\362"},                                                 // 300 фт
++    {"200 m", "\062\060\060\040\354"},                                                      // 200 м
++    {"600 ft", "\066\060\060\040\364\362"},                                                 // 600 фт
++    {"350 m", "\063\065\060\040\354"},                                                      // 350 м
++    {"0.2 mi", "\060\056\062\040\354\350"},                                                 // 0.2 ми
++    {"700 m", "\067\060\060\040\354"},                                                      // 700 м
++    {"0.5 mi", "\060\056\065\040\354\350"},                                                 // 0.5 ми
++    {"1.5 km", "\061\056\065\040\352\354"},                                                 // 1.5 км
++    {"0.9 mi", "\060\056\071\040\354\350"},                                                 // 0.9 ми
++    {"2.9 km", "\062\056\071\040\352\354"},                                                 // 2.9 км
++    {"1.8 mi", "\061\056\070\040\354\350"},                                                 // 1.8 ми
++    {"5.8 km", "\065\056\070\040\352\354"},                                                 // 5.8 км
++    {"3.6 mi", "\063\056\066\040\354\350"},                                                 // 3.6 ми
++    {"12 km", "\061\062\040\352\354"},                                                      // 12 км
++    {"7.3 mi", "\067\056\063\040\354\350"},                                                 // 7.3 ми
++    {"23 km", "\062\063\040\352\354"},                                                      // 23 км
++    {"15 mi", "\061\065\040\354\350"},                                                      // 15 ми
++    {"From:", "\316\362\072"},                                                              // От:
++    {"Lock screen", "\307\340\361\362\340\342\352\340"},                                    // Заставка
++    {"Lock now", "\302\352\353\376\367\350\362\374\040\361\345\351\367\340\361"},           // Включить сейчас
++    {"Auto: ", "\300\342\362\356\072\040"},                                                 // Авто:
++    {"Off", "\302\373\352\353\056"},                                                        // Выкл.
++    {"After 1 min", "\327\345\360\345\347\040\061\040\354\350\355\056"},                    // Через 1 мин.
++    {"After 5 min", "\327\345\360\345\347\040\065\040\354\350\355\056"},                    // Через 5 мин.
++    {"After 15 min", "\327\345\360\345\347\040\061\065\040\354\350\355\056"},               // Через 15 мин.
++    {"Mark all read", "\317\360\356\367\350\362\340\362\374\040\342\361\270"},              // Прочитать всё
++    {"Set time in app", "\307\340\344\340\351\362\345\040\342\360\345\354\377"},            // Задайте время
++    {"Unread: ", "\315\356\342\373\345\072\040"},                                           // Новые:
++    {"No unread messages", "\315\356\342\373\365\040\355\345\362"},                         // Новых нет
++    {"More: ", "\305\371\270\072\040"},                                                     // Ещё:
++    {"Hold to unlock", "\323\344\345\360\346\340\362\374\072\040\342\373\365\356\344"},     // Удержать: выход
++    {"Mode: economy", "\320\345\346\350\354\072\040\375\352\356\355\356\354\355\373\351"},  // Режим: экономный
++    {"Mode: normal", "\320\345\346\350\354\072\040\356\341\373\367\355\373\351"},           // Режим: обычный
++    {"Clock 5 min / clean 30 min", "\327\340\361\373\040\065\040\354\350\355\056\040\057\040\356\367\350\361\362\352\340\040\063"
++                                   "\060\040\354\350\355\056"}, // Часы 5 мин. / очистка 30 мин.
++    {"Clock 1 min / clean 10 min", "\327\340\361\373\040\061\040\354\350\355\056\040\057\040\356\367\350\361\362\352\340\040\061"
++                                   "\060\040\354\350\355\056"}, // Часы 1 мин. / очистка 10 мин.
 +};
 +constexpr bool sameText(const char *a, const char *b)
 +{
